@@ -4,4 +4,4 @@ pages_build_output_dir = "dist"
 
 [[kv_namespaces]]
 binding = "GAME_STATE"
-id = "placeholder"
+id = "42661da26ddd45a5af2322760839b24e"
