@@ -34,6 +34,9 @@ export async function chatCompletionStream(
   temperature: number = 0.7,
 ): Promise<string> {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -44,13 +47,16 @@ export async function chatCompletionStream(
         max_tokens: maxTokens,
         stream: true,
       }),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
+      clearTimeout(timeout);
       throw new Error(`API error: ${response.status}`);
     }
 
     if (!response.body) {
+      clearTimeout(timeout);
       throw new Error('No response body');
     }
 
@@ -58,9 +64,16 @@ export async function chatCompletionStream(
     const decoder = new TextDecoder();
     let full = '';
     let buffer = '';
+    let lastChunkTime = Date.now();
 
     while (true) {
-      const { done, value } = await reader.read();
+      const readPromise = reader.read();
+      // Per-chunk timeout: if no real data in 15s, abort
+      const chunkTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Stream chunk timeout')), 15000)
+      );
+
+      const { done, value } = await Promise.race([readPromise, chunkTimeout]);
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
@@ -80,15 +93,25 @@ export async function chatCompletionStream(
           const chunk = parsed.choices?.[0]?.delta?.content;
           if (chunk) {
             full += chunk;
+            lastChunkTime = Date.now();
             onChunk(full);
           }
         } catch { /* skip malformed chunks */ }
       }
+
+      // If we've been getting keepalives but no real content for 20s, bail
+      if (full === '' && Date.now() - lastChunkTime > 20000) {
+        reader.cancel();
+        throw new Error('No content received');
+      }
     }
+
+    clearTimeout(timeout);
 
     if (full) return full.trim();
     throw new Error('Empty stream response');
-  } catch {
+  } catch (err) {
+    console.warn(`[stream fallback] ${model}:`, err);
     // Fallback to non-streaming if streaming fails
     const result = await chatCompletion(model, messages, maxTokens, temperature);
     onChunk(result);
