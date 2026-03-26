@@ -11,6 +11,7 @@ const ALLOWED_ORIGINS = [
 ];
 
 function isAllowedOrigin(origin: string): boolean {
+  if (!origin) return true; // same-origin requests may omit Origin
   return ALLOWED_ORIGINS.some((allowed) => origin.startsWith(allowed));
 }
 
