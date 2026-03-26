@@ -37,8 +37,8 @@ export default function App() {
           <GameBoard
             state={state}
             onRules={() => setPage('rules')}
-            onHistory={() => setPage('history')}
-            onLeaderboard={() => setPage('leaderboard')}
+            // onHistory={() => setPage('history')}
+            // onLeaderboard={() => setPage('leaderboard')}
           />
 
           {state.error && (
