@@ -47,15 +47,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
-  // Check origin — reject requests without a valid origin
+  // Check origin
   const origin = context.request.headers.get('Origin') || '';
   const ALLOWED_ORIGINS = [
     'http://localhost',
     'https://theimpostor-ai.pages.dev',
     'https://impostor.matteomekhail.dev',
   ];
-  const isAllowed = ALLOWED_ORIGINS.some((allowed) => origin.startsWith(allowed));
-  if (!isAllowed) {
+  if (origin && !ALLOWED_ORIGINS.some((allowed) => origin.startsWith(allowed))) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -102,13 +101,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   if (stream) {
-    return new Response(response.body, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
+    const corsHeaders: Record<string, string> = {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    };
+    if (origin) {
+      corsHeaders['Access-Control-Allow-Origin'] = origin;
+    }
+    return new Response(response.body, { headers: corsHeaders });
   }
 
   const data = await response.json() as {
