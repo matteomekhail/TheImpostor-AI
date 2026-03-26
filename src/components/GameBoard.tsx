@@ -11,6 +11,7 @@ interface GameBoardProps {
   state: GameState;
   onRules?: () => void;
   onHistory?: () => void;
+  onLeaderboard?: () => void;
 }
 
 
@@ -39,7 +40,7 @@ function availableTabs(state: GameState): Tab[] {
   return tabs;
 }
 
-export default function GameBoard({ state, onRules, onHistory }: GameBoardProps) {
+export default function GameBoard({ state, onRules, onHistory, onLeaderboard }: GameBoardProps) {
   const { phase, players, currentWord, impostorName, thinkingPlayer } = state;
   const impostorColor = players.find(p => p.name === impostorName)?.color;
 
@@ -82,6 +83,9 @@ export default function GameBoard({ state, onRules, onHistory }: GameBoardProps)
               )}
               {onHistory && (
                 <button onClick={onHistory} className="font-[Tusker_Grotesk] text-sm text-cream/40 lowercase tracking-wider cursor-pointer hover:text-cream transition-colors">history</button>
+              )}
+              {onLeaderboard && (
+                <button onClick={onLeaderboard} className="font-[Tusker_Grotesk] text-sm text-cream/40 lowercase tracking-wider cursor-pointer hover:text-cream transition-colors">leaderboard</button>
               )}
             </div>
           </div>

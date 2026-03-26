@@ -4,13 +4,19 @@ interface Env {
 
 const HISTORY_KEY = 'game_history';
 
-function getAllowedOrigins(origin: string): boolean {
-  return !origin || origin.includes('localhost') || origin.includes('matteomekhail') || origin.includes('pages.dev');
+const ALLOWED_ORIGINS = [
+  'http://localhost',
+  'https://theimpostor-ai.pages.dev',
+  'https://impostor.matteomekhail.dev',
+];
+
+function isAllowedOrigin(origin: string): boolean {
+  return ALLOWED_ORIGINS.some((allowed) => origin.startsWith(allowed));
 }
 
 function corsHeaders(origin: string) {
   return {
-    'Access-Control-Allow-Origin': getAllowedOrigins(origin) ? origin : '',
+    'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin : '',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
@@ -25,7 +31,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const origin = context.request.headers.get('Origin') || '';
-  if (!getAllowedOrigins(origin)) {
+  if (!isAllowedOrigin(origin)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 

@@ -4,8 +4,9 @@ import { useGame } from './hooks/useGame';
 import GameBoard from './components/GameBoard';
 import Rules from './components/Rules';
 import History from './components/History';
+import Leaderboard from './components/Leaderboard';
 
-type Page = 'game' | 'rules' | 'history';
+type Page = 'game' | 'rules' | 'history' | 'leaderboard';
 
 export default function App() {
   const { state, history, refreshHistory } = useGame();
@@ -25,12 +26,19 @@ export default function App() {
         </motion.div>
       )}
 
+      {page === 'leaderboard' && (
+        <motion.div key="leaderboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+          <Leaderboard history={history} onBack={() => setPage('game')} onRefresh={refreshHistory} />
+        </motion.div>
+      )}
+
       {page === 'game' && (
         <motion.div key="game" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
           <GameBoard
             state={state}
             onRules={() => setPage('rules')}
             onHistory={() => setPage('history')}
+            onLeaderboard={() => setPage('leaderboard')}
           />
 
           {state.error && (

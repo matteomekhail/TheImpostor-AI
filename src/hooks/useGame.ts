@@ -28,6 +28,7 @@ export function useGame() {
   const isHostRef = useRef(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loopRunningRef = useRef(false);
+  const stateRef = useRef<GameState>(initialState);
 
   // On mount: check server state and load history
   useEffect(() => {
@@ -77,6 +78,7 @@ export function useGame() {
   const updateState = useCallback((updater: (prev: GameState) => GameState) => {
     setState((prev) => {
       const next = updater(prev);
+      stateRef.current = next;
       pushState(next).catch(() => {});
       return next;
     });
@@ -96,10 +98,9 @@ export function useGame() {
         // Run one game (1 round = 1 word, 3 clue rounds, discussion, vote, reveal)
         await runGame(DEFAULT_PLAYERS, 1, updateState);
 
-        // Save completed game to history
-        // We need to read current state to get the results
-        const currentState = await fetchState();
-        if (currentState && currentState.roundResults.length > 0) {
+        // Save completed game to history from local state (no KV race condition)
+        const currentState = stateRef.current;
+        if (currentState.roundResults.length > 0) {
           const completed: CompletedGame = {
             id: `game_${Date.now()}`,
             timestamp: Date.now(),
