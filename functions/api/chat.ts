@@ -46,9 +46,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
-  // Check origin
+  // Check origin — reject requests without a valid origin
   const origin = context.request.headers.get('Origin') || '';
-  if (origin && !origin.includes('localhost') && !origin.includes('matteomekhail') && !origin.includes('pages.dev')) {
+  const ALLOWED_ORIGINS = [
+    'http://localhost',
+    'https://theimpostor-ai.pages.dev',
+    'https://impostor.matteomekhail.dev',
+  ];
+  const isAllowed = ALLOWED_ORIGINS.some((allowed) => origin.startsWith(allowed));
+  if (!isAllowed) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
