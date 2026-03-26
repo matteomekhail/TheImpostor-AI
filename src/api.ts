@@ -26,6 +26,65 @@ export async function chatCompletion(
   return data.content;
 }
 
+export async function chatCompletionStream(
+  model: string,
+  messages: ChatMessage[],
+  onChunk: (text: string) => void,
+  maxTokens: number = 300,
+  temperature: number = 0.7,
+): Promise<string> {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error((err as { error: string }).error || `API error: ${response.status}`);
+  }
+
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let full = '';
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data: ')) continue;
+      const data = trimmed.slice(6);
+      if (data === '[DONE]') continue;
+
+      try {
+        const parsed = JSON.parse(data) as {
+          choices: { delta: { content?: string } }[];
+        };
+        const chunk = parsed.choices?.[0]?.delta?.content;
+        if (chunk) {
+          full += chunk;
+          onChunk(full);
+        }
+      } catch { /* skip malformed chunks */ }
+    }
+  }
+
+  return full.trim();
+}
+
 export async function pushState(state: GameState): Promise<void> {
   await fetch('/api/state', {
     method: 'PUT',

@@ -32,6 +32,8 @@ function apiProxy(): Plugin {
         const body = JSON.parse(Buffer.concat(chunks).toString())
 
         try {
+          const stream = body.stream === true
+
           const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -44,6 +46,7 @@ function apiProxy(): Plugin {
               messages: body.messages,
               temperature: body.temperature ?? 0.7,
               max_tokens: body.max_tokens ?? 300,
+              stream,
             }),
           })
 
@@ -52,6 +55,22 @@ function apiProxy(): Plugin {
             res.statusCode = response.status
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({ error: `OpenRouter: ${response.status}`, details: errorText }))
+            return
+          }
+
+          if (stream && response.body) {
+            res.setHeader('Content-Type', 'text/event-stream')
+            res.setHeader('Cache-Control', 'no-cache')
+            res.setHeader('Connection', 'keep-alive')
+            const reader = response.body.getReader()
+            const push = async () => {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) { res.end(); break }
+                res.write(Buffer.from(value))
+              }
+            }
+            push()
             return
           }
 

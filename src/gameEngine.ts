@@ -9,7 +9,7 @@ import type {
   Vote,
   WordEntry,
 } from './types';
-import { chatCompletion } from './api';
+import { chatCompletion, chatCompletionStream } from './api';
 import { wordBank } from './wordBank';
 import {
   systemPromptCivilian,
@@ -277,11 +277,34 @@ async function runRound(
     setState((prev) => ({ ...prev, thinkingPlayer: player.name }));
 
     const prompt = discussionPrompt(player.name, cluePairs);
-    const raw = await sendToPlayer(player, prompt, API_MAX_TOKENS);
-    const message = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-    const msg: DiscussionMessage = { playerName: player.name, message };
-    discussion.push(msg);
+    // Stream discussion messages for live text display
+    const history = playerHistories.get(player.name) || [];
+    history.push({ role: 'user', content: prompt });
+    playerHistories.set(player.name, history);
+
+    const streamingMsg: DiscussionMessage = { playerName: player.name, message: '' };
+    discussion.push(streamingMsg);
+
+    const raw = await chatCompletionStream(
+      player.modelId,
+      history,
+      (textSoFar) => {
+        const cleaned = textSoFar.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        streamingMsg.message = cleaned;
+        setState((prev) => ({
+          ...prev,
+          discussion: [...discussion],
+        }));
+      },
+      API_MAX_TOKENS,
+      API_TEMPERATURE,
+    );
+
+    history.push({ role: 'assistant', content: raw });
+
+    const message = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    streamingMsg.message = message;
 
     for (const other of players) {
       if (other.name !== player.name) {

@@ -7,6 +7,7 @@ interface ChatRequest {
   messages: { role: string; content: string }[];
   temperature?: number;
   max_tokens?: number;
+  stream?: boolean;
 }
 
 // Only allow our own models to prevent abuse
@@ -74,6 +75,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   // Cap max_tokens to prevent abuse
   const maxTokens = Math.min(body.max_tokens ?? 300, 500);
 
+  const stream = body.stream === true;
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -86,6 +89,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       messages: body.messages,
       temperature: body.temperature ?? 0.7,
       max_tokens: maxTokens,
+      stream,
     }),
   });
 
@@ -95,6 +99,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       { error: `OpenRouter API error: ${response.status}`, details: errorText },
       { status: response.status }
     );
+  }
+
+  if (stream) {
+    return new Response(response.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   }
 
   const data = await response.json() as {
