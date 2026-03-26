@@ -114,11 +114,8 @@ export function useGame() {
         // Show results for 8 seconds before starting next game
         await delay(8000);
       } catch (err) {
-        // On error, wait and retry
-        updateState((prev) => ({
-          ...prev,
-          error: err instanceof Error ? err.message : 'Unknown error',
-        }));
+        // Log error to console only, don't show in UI
+        console.error('[game error]', err);
         await delay(5000);
       }
     }
